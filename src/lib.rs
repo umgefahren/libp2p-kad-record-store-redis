@@ -1,5 +1,3 @@
-#![feature(in_band_lifetimes)]
-
 use redis::{Client, Commands, IntoConnectionInfo};
 use libp2p::kad::store::RecordStore;
 use libp2p::kad::record::Key;
