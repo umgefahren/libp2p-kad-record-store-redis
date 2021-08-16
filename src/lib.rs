@@ -10,6 +10,14 @@ use std::time::Instant;
 use serde::{Serialize, Deserialize};
 use std::vec::IntoIter;
 
+pub fn conn_from_env() -> String {
+    let host = std::env::var("REDIS_HOST")
+        .expect("Missing environment variable REDIS_HOST");
+    let port = std::env::var("REDIS_PORT")
+        .expect("Missing environment variable REDIS_PORT");
+    format!("redis://{}:{}", host, port)
+}
+
 #[derive(Serialize, Deserialize, PartialEq)]
 enum RecordType {
     Record(InnerRecord),
@@ -231,14 +239,15 @@ impl<'a> RecordStore<'a> for RedisStore {
 
 #[cfg(test)]
 mod records {
-    use crate::RedisStore;
+    use crate::{RedisStore, conn_from_env};
     use libp2p::kad::record::Key;
     use libp2p::kad::Record;
     use libp2p::kad::store::RecordStore;
 
     #[test]
     fn put_get_remove() {
-        let mut store = RedisStore::new("redis://localhost:6379").unwrap();
+        let addr = conn_from_env();
+        let mut store = RedisStore::new(addr).unwrap();
         let key = Key::from(b"Hello".to_vec());
         let record = Record::new(key.to_vec(), b"World".to_vec());
         store.put(record.clone()).unwrap();
@@ -249,7 +258,8 @@ mod records {
 
     #[test]
     fn put_iter() {
-        let mut store = RedisStore::new("redis://localhost:6379").unwrap();
+        let addr = conn_from_env();
+        let mut store = RedisStore::new(addr).unwrap();
         let key_values: Vec<(&[u8], &[u8])> = vec![(b"one", b"one_value"), (b"two", b"two_value"), (b"three", b"three_value")];
         let mut records: Vec<Record> = key_values
             .iter()
@@ -268,7 +278,7 @@ mod records {
 
 #[cfg(test)]
 mod providers {
-    use crate::RedisStore;
+    use crate::{RedisStore, conn_from_env};
     use libp2p::kad::record::Key;
     use libp2p::kad::ProviderRecord;
     use libp2p::kad::store::RecordStore;
@@ -276,7 +286,8 @@ mod providers {
 
     #[test]
     fn put_get_remove() {
-        let mut store = RedisStore::new("redis://localhost:6379").unwrap();
+        let addr = conn_from_env();
+        let mut store = RedisStore::new(addr).unwrap();
         let key = Key::from(b"Hello-PROV".to_vec());
         let peer_id = PeerId::random();
         let record = ProviderRecord::new(key.clone(), peer_id.clone(), vec![Multiaddr::empty()]);
@@ -289,7 +300,8 @@ mod providers {
 
     #[test]
     fn put_iter() {
-        let mut store = RedisStore::new("redis://localhost:6379").unwrap();
+        let addr = conn_from_env();
+        let mut store = RedisStore::new(addr).unwrap();
         let peers = vec![PeerId::random(), PeerId::random(), PeerId::random()];
         let addresses = vec![Multiaddr::empty(), Multiaddr::empty(), Multiaddr::empty()];
         let keys = vec![Key::from(b"one-rec".to_vec()), Key::from(b"two-rec".to_vec()), Key::from(b"three-rec".to_vec())];
