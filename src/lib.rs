@@ -1,3 +1,28 @@
+//! This crate uses the [Redis](https://redis.io) Key-Value-Store to work as a persistent store for
+//! everything stored in the local store of a libp2p-kad. The advantage over the [HashMap](std::collections::HashMap) used by
+//! libp2p is the ability that the data stored will still be there even after a node shuts down.
+//!
+//! The performance is not ideal. This is partly because of constraints given by the implemented trait
+//! and on the other hand the code written. Please feel free to contribute any improvements.
+//!
+//! The actual data store happens with internal structs which are then en- and decoded for storage in
+//! Redis.
+//!
+//! ## Example
+//! ```rust
+//! # use libp2p::kad::store::RecordStore;
+//! # use libp2p::kad::record::Key;
+//! # use libp2p::kad::Record;
+//! # use libp2p_kad_record_store_redis::{RedisStore, conn_from_env};
+//! # let addr = conn_from_env();
+//! let mut store = RedisStore::new(addr).unwrap(); /// 'addr' is just a normal redis address like 'redis://localhost:6379'
+//! let key = Key::from(b"Hello".to_vec());
+//! let record = Record::new(key.clone(), b"World".to_vec());
+//! store.put(record.clone()).unwrap();
+//! let ret_record = store.get(&key).unwrap().into_owned();
+//! assert_eq!(ret_record, record);
+//! ```
+
 use redis::{Client, Commands, IntoConnectionInfo};
 use libp2p::kad::store::RecordStore;
 use libp2p::kad::record::Key;
@@ -8,6 +33,7 @@ use std::time::Instant;
 use serde::{Serialize, Deserialize};
 use std::vec::IntoIter;
 
+/// For debugging only
 pub fn conn_from_env() -> String {
     let host = std::env::var("REDIS_HOST")
         .expect("Missing environment variable REDIS_HOST");
@@ -118,6 +144,25 @@ impl From<RecordType> for Vec<ProviderRecord> {
     }
 }
 
+/// Implementation of [RecordStore](libp2p_kad::record::store::RecordStore) using Redis.
+///
+/// For usagae, just replace it in the Swarm-init and in the type specification.
+/// ```ignore
+/// #[derive(NetworkBehaviour)]
+/// struct MyBehaviour {
+///     kademlia: Kademlia<MemoryStore>,
+///     mdns: Mdns,
+/// }
+///
+/// let mut swarm = {
+///         // Create a Kademlia behaviour.
+///         let store = RedisStore::new("localhost:6479");
+///         let kademlia = Kademlia::new(local_peer_id, store);
+///         let mdns = task::block_on(Mdns::new(MdnsConfig::default()))?;
+///         let behaviour = MyBehaviour { kademlia, mdns };
+///         Swarm::new(transport, behaviour, local_peer_id)
+///     };
+/// ```
 pub struct RedisStore {
     client: Client,
 }
